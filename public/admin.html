@@ -35,6 +35,15 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
+        .password-hint {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+            display: inline-block;
+        }
+        
         .panel {
             background: white;
             border-radius: 15px;
@@ -188,6 +197,9 @@
         <div class="header">
             <h1>🔑 Verdant Key Management</h1>
             <p>Generate and manage license keys for your application</p>
+            <div class="password-hint">
+                🔐 Default Admin Password: <strong>admin123</strong>
+            </div>
         </div>
         
         <div class="panel">
@@ -202,7 +214,7 @@
             <form id="generateForm">
                 <div class="form-group">
                     <label for="adminPassword">Admin Password</label>
-                    <input type="password" id="adminPassword" required placeholder="Enter admin password">
+                    <input type="password" id="adminPassword" required placeholder="Enter admin password (default: admin123)">
                 </div>
                 
                 <div class="form-group">
@@ -239,7 +251,7 @@
         <div class="panel">
             <h2>📋 Manage Existing Keys</h2>
             <div class="form-group">
-                <input type="password" id="managePassword" placeholder="Enter admin password to view keys">
+                <input type="password" id="managePassword" placeholder="Enter admin password (default: admin123)">
                 <button onclick="loadKeys()" style="margin-top: 10px;">🔍 Load Keys</button>
             </div>
             
