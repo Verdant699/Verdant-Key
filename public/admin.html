@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verdant Key Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        input:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        }
+        
+        .keys-grid {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .key-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .key-info {
+            flex: 1;
+        }
+        
+        .key-code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .key-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .key-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-revoked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-used {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .generated-keys {
+            background: #e8f5e8;
+            border: 2px dashed #4caf50;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        
+        .key-item {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Verdant Key Management</h1>
+            <p>Generate and manage license keys for your application</p>
+        </div>
+        
+        <div class="panel">
+            <h2>📊 Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>🔧 Generate New Keys</h2>
+            <form id="generateForm">
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <input type="password" id="adminPassword" required placeholder="Enter admin password">
+                </div>
+                
+                <div class="form-group">
+                    <label for="keyType">Key Type</label>
+                    <select id="keyType" required>
+                        <option value="hour">1 Hour</option>
+                        <option value="day">1 Day</option>
+                        <option value="week">1 Week</option>
+                        <option value="month">1 Month</option>
+                        <option value="permanent">Permanent</option>
+                        <option value="custom">Custom Duration</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="customDaysGroup" style="display: none;">
+                    <label for="customDays">Number of Days</label>
+                    <input type="number" id="customDays" min="1" max="3650" placeholder="Enter number of days">
+                </div>
+                
+                <div class="form-group">
+                    <label for="keyQuantity">Quantity</label>
+                    <input type="number" id="keyQuantity" min="1" max="100" value="1" required>
+                </div>
+                
+                <button type="submit">🎯 Generate Keys</button>
+            </form>
+            
+            <div id="generatedKeys" class="generated-keys" style="display: none;">
+                <h3>✅ Generated Keys:</h3>
+                <div id="keysList"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>📋 Manage Existing Keys</h2>
+            <div class="form-group">
+                <input type="password" id="managePassword" placeholder="Enter admin password to view keys">
+                <button onclick="loadKeys()" style="margin-top: 10px;">🔍 Load Keys</button>
+            </div>
+            
+            <div id="keysContainer">
+                <!-- Keys will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        // Show/hide custom days input
+        document.getElementById('keyType').addEventListener('change', function() {
+            const customGroup = document.getElementById('customDaysGroup');
+            customGroup.style.display = this.value === 'custom' ? 'block' : 'none';
+        });
+        
+        // Generate keys form
+        document.getElementById('generateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                type: document.getElementById('keyType').value,
+                quantity: parseInt(document.getElementById('keyQuantity').value),
+                admin_password: document.getElementById('adminPassword').value
+            };
+            
+            if (formData.type === 'custom') {
+                const days = parseInt(document.getElementById('customDays').value);
+                if (!days || days < 1) {
+                    alert('Please enter a valid number of days');
+                    return;
+                }
+                formData.days = days;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showGeneratedKeys(result.keys);
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Failed to generate keys: ' + error.message);
+            }
+        });
+        
+        // Show generated keys
+        function showGeneratedKeys(keys) {
+            const container = document.getElementById('keysList');
+            const panel = document.getElementById('generatedKeys');
+            
+            container.innerHTML = keys.map(key => 
+                `<div class="key-item">${key.key} (Expires: ${key.expiration_date})</div>`
+            ).join('');
+            
+            panel.style.display = 'block';
+        }
+        
+        // Load statistics
+        async function loadStats() {
+            try {
+                // For now, we'll load stats when loading keys
+                // You could create a separate stats endpoint if needed
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+        
+        // Load all keys
+        async function loadKeys() {
+            const password = document.getElementById('managePassword').value;
+            if (!password) {
+                alert('Please enter admin password');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/keys?admin_password=${encodeURIComponent(password)}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayKeys(result.keys, result.stats);
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Failed to load keys: ' + error.message);
+            }
+        }
+        
+        // Display keys in the UI
+        function displayKeys(keys, stats) {
+            // Update stats
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <span class="stat-number">${stats.total_generated}</span>
+                    Total Generated
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">${stats.active_keys}</span>
+                    Active Keys
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">${stats.revoked_keys}</span>
+                    Revoked Keys
+                </div>
+            `;
+            
+            // Display keys
+            const container = document.getElementById('keysContainer');
+            if (keys.length === 0) {
+                container.innerHTML = '<p>No keys found.</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="keys-grid">
+                    ${keys.map(key => `
+                        <div class="key-card">
+                            <div class="key-info">
+                                <div class="key-code">${key.key}</div>
+                                <div class="key-meta">
+                                    Type: ${key.keyType} | 
+                                    Created: ${new Date(key.created_at).toLocaleDateString()} | 
+                                    Expires: ${key.expiration_date}
+                                    ${key.used ? ` | Used by: ${key.used_by}` : ''}
+                                </div>
+                            </div>
+                            <div class="key-actions">
+                                <span class="status-badge ${key.isActive ? 'status-active' : 'status-revoked'} ${key.used ? 'status-used' : ''}">
+                                    ${key.isActive ? (key.used ? 'USED' : 'ACTIVE') : 'REVOKED'}
+                                </span>
+                                <button onclick="revokeKey('${key.key}')" class="btn-danger" ${!key.isActive ? 'disabled' : ''}>
+                                    Revoke
+                                </button>
+                                <button onclick="deleteKey('${key.key}')" style="background: #6c757d;">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // Revoke a key
+        async function revokeKey(key) {
+            const password = document.getElementById('managePassword').value;
+            
+            if (!confirm(`Are you sure you want to revoke key: ${key}?`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/revoke`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, admin_password: password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Key revoked successfully');
+                    loadKeys();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Failed to revoke key: ' + error.message);
+            }
+        }
+        
+        // Delete a key permanently
+        async function deleteKey(key) {
+            const password = document.getElementById('managePassword').value;
+            
+            if (!confirm(`Are you sure you want to permanently delete key: ${key}? This cannot be undone.`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/keys/${key}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_password: password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Key deleted successfully');
+                    loadKeys();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Failed to delete key: ' + error.message);
+            }
+        }
+        
+        // Load stats on page load
+        window.addEventListener('load', loadStats);
+    </script>
+</body>
+</html>
