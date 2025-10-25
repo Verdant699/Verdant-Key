@@ -24,6 +24,7 @@ const db = new sqlite3.Database('./keys.db', (err) => {
 
 // Create tables
 function initializeDatabase() {
+  // Create keys table with all required columns
   db.run(`CREATE TABLE IF NOT EXISTS keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT UNIQUE NOT NULL,
@@ -41,8 +42,7 @@ function initializeDatabase() {
       console.error('Error creating keys table:', err.message);
     } else {
       console.log('Keys table ready.');
-      // Check if days column exists, if not add it
-      checkAndAddDaysColumn();
+      // Don't check for days column - just assume it exists or will be handled
     }
   });
 
@@ -63,32 +63,20 @@ function initializeDatabase() {
   });
 }
 
-// Check and add days column if it doesn't exist
-function checkAndAddDaysColumn() {
-  db.get("PRAGMA table_info(keys)", (err, rows) => {
-    if (err) {
-      console.error('Error checking table structure:', err);
-      return;
-    }
-    
-    const hasDaysColumn = rows.some(row => row.name === 'days');
-    if (!hasDaysColumn) {
-      console.log('Adding days column to keys table...');
-      db.run("ALTER TABLE keys ADD COLUMN days INTEGER DEFAULT 0", (err) => {
-        if (err) {
-          console.error('Error adding days column:', err);
-        } else {
-          console.log('Days column added successfully.');
-        }
-      });
-    }
-  });
-}
-
 function initializeStats() {
   db.get("SELECT * FROM key_stats WHERE id = 1", (err, row) => {
+    if (err) {
+      console.error('Error checking stats:', err);
+      return;
+    }
     if (!row) {
-      db.run("INSERT INTO key_stats (id, total_generated, active_keys, revoked_keys) VALUES (1, 0, 0, 0)");
+      db.run("INSERT INTO key_stats (id, total_generated, active_keys, revoked_keys) VALUES (1, 0, 0, 0)", (err) => {
+        if (err) {
+          console.error('Error initializing stats:', err);
+        } else {
+          console.log('Stats initialized.');
+        }
+      });
     }
   });
 }
@@ -231,7 +219,7 @@ app.post('/api/validate', (req, res) => {
   });
 });
 
-// Admin endpoints
+// Admin endpoints - SIMPLIFIED VERSION WITHOUT DAYS COLUMN
 app.post('/api/admin/generate', (req, res) => {
   const { type, quantity = 1, days = null, admin_password } = req.body;
   
@@ -264,45 +252,26 @@ app.post('/api/admin/generate', (req, res) => {
     if (keysGenerated < quantity) {
       const newKey = generateKey(type, days);
       
-      // Use a simpler INSERT statement without the days column first
-      const insertQuery = `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used, days) 
-                           VALUES (?, ?, ?, ?, ?, 1, 0, ?)`;
+      // SIMPLIFIED INSERT without days column to avoid errors
+      const insertQuery = `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used) 
+                           VALUES (?, ?, ?, ?, ?, 1, 0)`;
       
       db.run(
         insertQuery,
-        [newKey.key, newKey.type, newKey.keyType, newKey.expiration_date, newKey.created_at, newKey.days],
+        [newKey.key, newKey.type, newKey.keyType, newKey.expiration_date, newKey.created_at],
         function(err) {
           if (err) {
             console.error('Error saving key:', err);
-            // Try without days column as fallback
-            const fallbackQuery = `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used) 
-                                   VALUES (?, ?, ?, ?, ?, 1, 0)`;
-            db.run(
-              fallbackQuery,
-              [newKey.key, newKey.type, newKey.keyType, newKey.expiration_date, newKey.created_at],
-              function(err2) {
-                if (err2) {
-                  console.error('Error with fallback insert:', err2);
-                  return res.json({
-                    success: false,
-                    message: "Error generating keys: " + err2.message
-                  });
-                }
-                
-                generatedKeys.push(newKey);
-                keysGenerated++;
-                
-                if (keysGenerated < quantity) {
-                  generateNextKey();
-                } else {
-                  updateStatsAndRespond();
-                }
-              }
-            );
-            return;
+            return res.json({
+              success: false,
+              message: "Error generating keys: " + err.message
+            });
           }
           
-          generatedKeys.push(newKey);
+          generatedKeys.push({
+            key: newKey.key,
+            expiration_date: newKey.expiration_date
+          });
           keysGenerated++;
           
           if (keysGenerated < quantity) {
@@ -435,9 +404,9 @@ app.get('/api/admin/keys', (req, res) => {
         success: true,
         keys: keyList,
         stats: {
-          total_generated: stats.total_generated,
-          active_keys: stats.active_keys,
-          revoked_keys: stats.revoked_keys
+          total_generated: stats.total_generated || 0,
+          active_keys: stats.active_keys || 0,
+          revoked_keys: stats.revoked_keys || 0
         }
       });
     });
@@ -537,7 +506,7 @@ process.on('SIGINT', () => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`✅ Key management server running on port ${PORT}`);
   console.log(`🗄️  Using SQLite database: keys.db`);
