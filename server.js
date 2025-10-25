@@ -34,12 +34,15 @@ function initializeDatabase() {
     isActive BOOLEAN DEFAULT 1,
     used BOOLEAN DEFAULT 0,
     used_by TEXT,
-    used_at DATETIME
+    used_at DATETIME,
+    days INTEGER DEFAULT 0
   )`, (err) => {
     if (err) {
       console.error('Error creating keys table:', err.message);
     } else {
       console.log('Keys table ready.');
+      // Check if days column exists, if not add it
+      checkAndAddDaysColumn();
     }
   });
 
@@ -56,6 +59,28 @@ function initializeDatabase() {
       console.log('Stats table ready.');
       // Initialize stats if empty
       initializeStats();
+    }
+  });
+}
+
+// Check and add days column if it doesn't exist
+function checkAndAddDaysColumn() {
+  db.get("PRAGMA table_info(keys)", (err, rows) => {
+    if (err) {
+      console.error('Error checking table structure:', err);
+      return;
+    }
+    
+    const hasDaysColumn = rows.some(row => row.name === 'days');
+    if (!hasDaysColumn) {
+      console.log('Adding days column to keys table...');
+      db.run("ALTER TABLE keys ADD COLUMN days INTEGER DEFAULT 0", (err) => {
+        if (err) {
+          console.error('Error adding days column:', err);
+        } else {
+          console.log('Days column added successfully.');
+        }
+      });
     }
   });
 }
@@ -239,17 +264,42 @@ app.post('/api/admin/generate', (req, res) => {
     if (keysGenerated < quantity) {
       const newKey = generateKey(type, days);
       
+      // Use a simpler INSERT statement without the days column first
+      const insertQuery = `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used, days) 
+                           VALUES (?, ?, ?, ?, ?, 1, 0, ?)`;
+      
       db.run(
-        `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used, days) 
-         VALUES (?, ?, ?, ?, ?, 1, 0, ?)`,
+        insertQuery,
         [newKey.key, newKey.type, newKey.keyType, newKey.expiration_date, newKey.created_at, newKey.days],
         function(err) {
           if (err) {
             console.error('Error saving key:', err);
-            return res.json({
-              success: false,
-              message: "Error generating keys"
-            });
+            // Try without days column as fallback
+            const fallbackQuery = `INSERT INTO keys (key, type, keyType, expiration_date, created_at, isActive, used) 
+                                   VALUES (?, ?, ?, ?, ?, 1, 0)`;
+            db.run(
+              fallbackQuery,
+              [newKey.key, newKey.type, newKey.keyType, newKey.expiration_date, newKey.created_at],
+              function(err2) {
+                if (err2) {
+                  console.error('Error with fallback insert:', err2);
+                  return res.json({
+                    success: false,
+                    message: "Error generating keys: " + err2.message
+                  });
+                }
+                
+                generatedKeys.push(newKey);
+                keysGenerated++;
+                
+                if (keysGenerated < quantity) {
+                  generateNextKey();
+                } else {
+                  updateStatsAndRespond();
+                }
+              }
+            );
+            return;
           }
           
           generatedKeys.push(newKey);
@@ -258,24 +308,28 @@ app.post('/api/admin/generate', (req, res) => {
           if (keysGenerated < quantity) {
             generateNextKey();
           } else {
-            // Update stats
-            db.run(
-              "UPDATE key_stats SET total_generated = total_generated + ?, active_keys = active_keys + ?, updated_at = datetime('now') WHERE id = 1",
-              [quantity, quantity],
-              (err) => {
-                if (err) console.error('Error updating stats:', err);
-                
-                res.json({
-                  success: true,
-                  message: `Generated ${quantity} ${type} key(s)`,
-                  keys: generatedKeys
-                });
-              }
-            );
+            updateStatsAndRespond();
           }
         }
       );
     }
+  }
+  
+  function updateStatsAndRespond() {
+    // Update stats
+    db.run(
+      "UPDATE key_stats SET total_generated = total_generated + ?, active_keys = active_keys + ?, updated_at = datetime('now') WHERE id = 1",
+      [quantity, quantity],
+      (err) => {
+        if (err) console.error('Error updating stats:', err);
+        
+        res.json({
+          success: true,
+          message: `Generated ${quantity} ${type} key(s)`,
+          keys: generatedKeys
+        });
+      }
+    );
   }
   
   generateNextKey();
