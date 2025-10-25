@@ -9,6 +9,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Manual admin password - change this to your desired password
+const ADMIN_PASSWORD = 'admin123';
+
 // Initialize SQLite Database
 const db = new sqlite3.Database('./keys.db', (err) => {
   if (err) {
@@ -207,7 +210,7 @@ app.post('/api/validate', (req, res) => {
 app.post('/api/admin/generate', (req, res) => {
   const { type, quantity = 1, days = null, admin_password } = req.body;
   
-  if (admin_password !== process.env.ADMIN_PASSWORD) {
+  if (admin_password !== ADMIN_PASSWORD) {
     return res.json({
       success: false,
       message: "Invalid admin password"
@@ -281,7 +284,7 @@ app.post('/api/admin/generate', (req, res) => {
 app.post('/api/admin/revoke', (req, res) => {
   const { key, admin_password } = req.body;
   
-  if (admin_password !== process.env.ADMIN_PASSWORD) {
+  if (admin_password !== ADMIN_PASSWORD) {
     return res.json({
       success: false,
       message: "Invalid admin password"
@@ -341,7 +344,7 @@ app.post('/api/admin/revoke', (req, res) => {
 app.get('/api/admin/keys', (req, res) => {
   const { admin_password } = req.query;
   
-  if (admin_password !== process.env.ADMIN_PASSWORD) {
+  if (admin_password !== ADMIN_PASSWORD) {
     return res.json({
       success: false,
       message: "Invalid admin password"
@@ -391,7 +394,7 @@ app.delete('/api/admin/keys/:key', (req, res) => {
   const { key } = req.params;
   const { admin_password } = req.body;
   
-  if (admin_password !== process.env.ADMIN_PASSWORD) {
+  if (admin_password !== ADMIN_PASSWORD) {
     return res.json({
       success: false,
       message: "Invalid admin password"
@@ -485,4 +488,5 @@ app.listen(PORT, () => {
   console.log(`✅ Key management server running on port ${PORT}`);
   console.log(`🗄️  Using SQLite database: keys.db`);
   console.log(`🔑 Admin panel: http://localhost:${PORT}/admin`);
+  console.log(`🔐 Admin password: ${ADMIN_PASSWORD}`);
 });
